@@ -1,0 +1,182 @@
+# Import necessary libraries
+import tkinter as tk
+from tkinter import messagebox, simpledialog, filedialog
+import os
+from docx import Document
+
+# Define the File Management System class
+class FileManager(tk.Tk):
+    def __init__(self):
+        super().__init__()
+        self.title("File Management System")
+        self.geometry("500x400")
+        self.configure(bg="#FFFFCC")  # Set background color to light yellow
+
+        # Define the folder for storing files
+        self.folder_path = "files_folder"
+        if not os.path.exists(self.folder_path):
+            os.makedirs(self.folder_path)
+
+        # Create GUI elements
+        self.create_gui()
+
+    # Function to create GUI elements
+    def create_gui(self):
+        # Create frame for file creation
+        self.create_file_frame = tk.Frame(self, bg="#FFFFCC")  # Light yellow background
+        self.create_file_frame.pack(pady=10)
+
+        # Create file label
+        self.create_file_label = tk.Label(self.create_file_frame, text="File Management", bg="#FFFFCC", fg="blue", font=("Helvetica", 16, "bold"))
+        self.create_file_label.pack()
+
+        # File name entry
+        self.file_name_label = tk.Label(self.create_file_frame, text="File Name:", bg="#FFFFCC", font=("Helvetica", 12))
+        self.file_name_label.pack()
+        self.file_name_entry = tk.Entry(self.create_file_frame, width=30)
+        self.file_name_entry.pack(pady=5)
+
+        # File content entry
+        self.file_content_label = tk.Label(self.create_file_frame, text="File Contents:", bg="#FFFFCC", font=("Helvetica", 12))
+        self.file_content_label.pack()
+        self.file_contents_entry = tk.Text(self.create_file_frame, width=50, height=6)
+        self.file_contents_entry.pack(pady=5)
+
+        # Upload button
+        self.upload_button = tk.Button(self.create_file_frame, text="Upload File", command=self.upload_file, bg="green", fg="white", font=("Helvetica", 12, "bold"))
+        self.upload_button.pack(pady=5)
+
+        # Submit button
+        self.submit_button = tk.Button(self.create_file_frame, text="Submit", command=self.write_to_file, bg="blue", fg="white", font=("Helvetica", 12, "bold"))
+        self.submit_button.pack(pady=5)
+
+        # Frame for file list
+        self.list_files_frame = tk.Frame(self, bg="#FFFFCC")  # Light yellow background
+        self.list_files_frame.pack(pady=10)
+
+        # List of files label
+        self.list_files_label = tk.Label(self.list_files_frame, text="List of Files", bg="#FFFFCC", fg="blue", font=("Helvetica", 16, "bold"))
+        self.list_files_label.pack()
+
+        # File listbox
+        self.files_listbox = tk.Listbox(self.list_files_frame, width=50, height=10, font=("Helvetica", 12))
+        self.files_listbox.pack()
+
+        self.files_listbox.bind("<<ListboxSelect>>", self.display_file_contents)
+
+        # Rename button
+        self.rename_button = tk.Button(self.list_files_frame, text="Rename", command=self.rename_selected_file, bg="orange", fg="white", font=("Helvetica", 12, "bold"))
+        self.rename_button.pack(pady=5)
+
+        # Delete button
+        self.delete_button = tk.Button(self.list_files_frame, text="Delete", command=self.delete_selected_file, bg="red", fg="white", font=("Helvetica", 12, "bold"))
+        self.delete_button.pack(pady=5)
+
+        # Refresh file list
+        self.refresh_files_list()
+
+    # Function to refresh file list
+    def refresh_files_list(self):
+        self.files_listbox.delete(0, tk.END)
+        # List files in the folder
+        files = [f for f in os.listdir(self.folder_path) if os.path.isfile(os.path.join(self.folder_path, f))]
+        for file in files:
+            self.files_listbox.insert(tk.END, file)
+
+    # Function to write content to file
+    def write_to_file(self):
+        filename = self.file_name_entry.get()
+        file_content = self.file_contents_entry.get("1.0", "end-1c")  # Get content from Text widget
+
+        try:
+            file_path = os.path.join(self.folder_path, filename)
+            with open(file_path, 'w') as file:
+                file.write(file_content)
+
+            self.refresh_files_list()
+            messagebox.showinfo("Success", f"File '{filename}' has been created.")
+
+            self.file_name_entry.delete(0, tk.END)
+            self.file_contents_entry.delete("1.0", tk.END)
+        except Exception as e:
+            messagebox.showerror("Error", f"An error occurred: {e}")
+
+    # Function to display file contents
+    def display_file_contents(self, event):
+        selected_file_index = self.files_listbox.curselection()
+        if selected_file_index:
+            selected_file = self.files_listbox.get(selected_file_index)
+            try:
+                file_path = os.path.join(self.folder_path, selected_file)
+                with open(file_path, 'r') as file:
+                    file_contents = file.read()
+
+                file_window = tk.Toplevel(self)
+                file_window.title("File Contents")
+                file_window.geometry("400x300")
+
+                text_widget = tk.Text(file_window, wrap="word")
+                text_widget.pack(fill="both", expand=True)
+
+                scrollbar = tk.Scrollbar(file_window, command=text_widget.yview)
+                scrollbar.pack(side="right", fill="y")
+                text_widget.config(yscrollcommand=scrollbar.set)
+
+                text_widget.insert(tk.END, file_contents)
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred reading '{selected_file}': {e}")
+
+    # Function to rename selected file
+    def rename_selected_file(self):
+        selected_index = self.files_listbox.curselection()
+        if selected_index:
+            selected_file = self.files_listbox.get(selected_index)
+            new_name = simpledialog.askstring("Rename", f"Enter new name for '{selected_file}':")
+            if new_name:
+                try:
+                    old_path = os.path.join(self.folder_path, selected_file)
+                    new_path = os.path.join(self.folder_path, new_name)
+                    os.rename(old_path, new_path)
+                    self.refresh_files_list()
+                    messagebox.showinfo("Success", f"File '{selected_file}' has been renamed to '{new_name}'.")
+                except Exception as e:
+                    messagebox.showerror("Error", f"An error occurred while renaming '{selected_file}': {e}")
+
+    # Function to delete selected file
+    def delete_selected_file(self):
+        selected_index = self.files_listbox.curselection()
+        if selected_index:
+            selected_file = self.files_listbox.get(selected_index)
+            try:
+                file_path = os.path.join(self.folder_path, selected_file)
+                os.remove(file_path)
+                self.refresh_files_list()
+                messagebox.showinfo("Success", f"File '{selected_file}' has been deleted.")
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred while deleting '{selected_file}': {e}")
+
+    # Function to upload file
+    def upload_file(self):
+        file_path = filedialog.askopenfilename()
+        if file_path:
+            try:
+                if file_path.endswith('.docx'):
+                    doc = Document(file_path)
+                    file_contents = '\n'.join([paragraph.text for paragraph in doc.paragraphs])
+                else:
+                    with open(file_path, 'r', encoding='utf-8') as file:
+                        file_contents = file.read()
+
+                self.file_contents_entry.delete("1.0", tk.END)
+                self.file_contents_entry.insert(tk.END, file_contents)
+            except Exception as e:
+                messagebox.showerror("Error", f"An error occurred while uploading file: {e}")
+
+# Main function to run the application
+def main():
+    file_manager = FileManager()
+    file_manager.mainloop()
+
+# Run the main function
+if __name__ == "__main__":
+    main()
